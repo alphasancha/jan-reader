@@ -1,40 +1,45 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>JANコードリーダー</title>
+  <title>バーコード・リーダー</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
       font-family: sans-serif;
       padding: 20px;
-      background: #f5f6f8;
+      background: #001E43;
+      color: white;
       text-align: center;
+      margin: 0;
     }
-    main { max-width: 480px; margin: auto; }
+    main { max-width: 480px; margin: auto; padding-top: 20px; }
     #reader {
       background: white;
-      border-radius: 12px;
+      border-radius: 16px;
       overflow: hidden;
+      margin-top: 15px;
     }
-    #status { margin: 18px 0; }
+    #status { margin: 18px 0; font-size: 13px; color: #cbd5e1; }
     button {
       padding: 14px;
       width: 100%;
       border: 0;
-      border-radius: 9px;
-      background: #1769e0;
+      border-radius: 12px;
+      background: #E60012;
       color: white;
-      font-size: 17px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 <main>
-  <h2>JANコードリーダー</h2>
-  <p>商品のバーコードを枠内に合わせてください。</p>
+  <h2 id="title-text">バーコードリーダー</h2>
+  <p style="font-size: 12px; color: #94a3b8;">コードを枠内に合わせてください</p>
 
   <div id="reader"></div>
   <p id="status">カメラを準備しています...</p>
@@ -42,8 +47,15 @@
 </main>
 
 <script>
-  // STEP 5でコピーしたGASのURLに置き換える
+  // 【重要】ご自身のGASのウェブアプリURLに書き換えてください
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbwn3OE9_QVOTIdZrOvpOYPj6LN6B1otflT_j-1FqL7_5QP-GH11Z1MlA7_d0vT9wSoymA/exec';
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const staff = urlParams.get('staff') || '';
+  const eventId = urlParams.get('event') || '';
+  const mode = urlParams.get('mode') || 'jan'; // 'jan' または 'imei'
+
+  document.getElementById('title-text').textContent = mode === 'imei' ? '製造番号(IMEI)リーダー' : 'JANコードリーダー';
 
   let scanner;
   let locked = false;
@@ -51,19 +63,19 @@
   async function startScanner() {
     locked = false;
     document.getElementById('retry').hidden = true;
-    document.getElementById('status').textContent =
-      'カメラを起動しています...';
+    document.getElementById('status').textContent = 'カメラを起動しています...';
 
     try {
       if (scanner) {
         await scanner.clear();
       }
 
+      const formats = mode === 'imei' ? 
+        [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13] : 
+        [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8];
+
       scanner = new Html5Qrcode('reader', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8
-        ],
+        formatsToSupport: formats,
         verbose: false
       });
 
@@ -72,46 +84,35 @@
         { fps: 10, qrbox: { width: 280, height: 120 } },
         async function(decodedText) {
           if (locked) return;
-          if (!/^\d{8}$|^\d{13}$/.test(decodedText)) return;
-
           locked = true;
-          document.getElementById('status').textContent =
-            'JANコードを読み取りました：' + decodedText;
+          document.getElementById('status').textContent = '読み取りました：' + decodedText;
 
           try {
             await scanner.stop();
           } catch (e) {}
 
           const target = new URL(GAS_URL);
-          target.searchParams.set('jan', decodedText);
+          target.searchParams.set('staff', staff);
+          target.searchParams.set('event', eventId);
+          if (mode === 'imei') {
+            target.searchParams.set('imei', decodedText.replace(/[^0-9]/g, '').slice(-6));
+          } else {
+            target.searchParams.set('jan', decodedText);
+          }
           window.location.href = target.toString();
         },
-        function() {
-          // 読み取り中の未認識エラーは無視
-        }
+        function() {}
       );
 
-      document.getElementById('status').textContent =
-        'バーコードをカメラに映してください。';
-
+      document.getElementById('status').textContent = 'カメラにコードを映してください。';
     } catch (error) {
-      document.getElementById('status').textContent =
-        'カメラを起動できません。Safariのカメラ許可とHTTPS接続を確認してください。';
+      document.getElementById('status').textContent = 'カメラを起動できません。権限とHTTPSを確認してください。';
       document.getElementById('retry').hidden = false;
     }
   }
 
-  document.getElementById('retry').addEventListener(
-    'click', startScanner
-  );
-
-  if (GAS_URL.startsWith('https://script.google.com/macros/s/')
-      && GAS_URL.endsWith('/exec')) {
-    startScanner();
-  } else {
-    document.getElementById('status').textContent =
-      'GAS_URLを正しいウェブアプリURLに設定してください。';
-  }
+  document.getElementById('retry').addEventListener('click', startScanner);
+  startScanner();
 </script>
 </body>
 </html>
