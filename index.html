@@ -77,7 +77,7 @@
       object-fit: cover;
     }
 
-    /* 中央の赤線ガイド（さらに薄く・スリムに調整） */
+    /* 中央の赤線ガイド（さらに高さを低く・スリムに調整） */
     .scan-laser {
       position: absolute;
       top: 50%;
@@ -141,7 +141,7 @@
   </div>
 
   <p id="status">カメラを準備しています...</p>
-  <button id="retry" hidden>もう一度読み取り直す</button>
+  <button id="retry" hidden>もう一度読み取る</button>
 </main>
 
 <script>
@@ -178,18 +178,12 @@
         verbose: false
       });
 
-      // 【対策1】カメラの解像度を高画質（HD）に指定して細部まで捉えやすくする
-      const qrboxSize = { width: 260, height: 35 };
-
+      // 高さをさらに薄く（高さ 35px に変更）
       await scanner.start(
+        { facingMode: 'environment' },
         { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        { 
-          fps: 20, // 読み取り感度を上げるためにフレームレートを向上
-          qrbox: qrboxSize 
+          fps: 15, 
+          qrbox: { width: 260, height: 35 } 
         },
         async function(decodedText) {
           if (locked) return;
@@ -212,16 +206,6 @@
         },
         function() {}
       );
-
-      // 【対策2】カメラ起動後にピント（オートフォーカス）やズームの制御を試みる
-      try {
-        await scanner.applyVideoConstraints({
-          focusMode: "continuous", // 可能な限りピントを合わせ続ける
-          advanced: [{ zoom: 1.2 }] // 小さなバーコード対策として少しだけズーム（非対応機種は無視されます）
-        });
-      } catch (err) {
-        console.log("この端末・ブラウザは高度なカメラ制御（フォーカス/ズーム）に一部非対応です", err);
-      }
 
       document.getElementById('status').textContent = 'カメラにコードを映してください。';
     } catch (error) {
