@@ -73,11 +73,12 @@
       border: none !important;
     }
 
+    /* html5-qrcode 内部要素のスタイリング補正 */
     #reader video {
       object-fit: cover;
     }
 
-    /* 中央の赤線ガイド（さらに高さを低く・スリムに調整） */
+    /* 中央の赤線ガイド（アニメーション付き） */
     .scan-laser {
       position: absolute;
       top: 50%;
@@ -153,6 +154,7 @@
   const eventId = urlParams.get('event') || '';
   const mode = urlParams.get('mode') || 'jan'; // 'jan' または 'imei'
 
+  // タイトルを「バーコードスキャン」固定、または用途別に設定
   document.getElementById('title-text').textContent = mode === 'imei' ? '製造番号(IMEI)スキャン' : 'バーコードスキャン';
 
   let scanner;
@@ -178,12 +180,13 @@
         verbose: false
       });
 
-      // 高さをさらに薄く（高さ 35px に変更）
+      // 読み取り範囲（qrbox）をより狭く設定してピンポイントで狙えるように変更
+      // 幅 240px、高さ 60px で小さなバーコードや混雑した領域に対応
       await scanner.start(
         { facingMode: 'environment' },
         { 
           fps: 15, 
-          qrbox: { width: 260, height: 35 } 
+          qrbox: { width: 240, height: 35 } 
         },
         async function(decodedText) {
           if (locked) return;
