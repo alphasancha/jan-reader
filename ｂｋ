@@ -73,12 +73,11 @@
       border: none !important;
     }
 
-    /* html5-qrcode 内部要素のスタイリング補正 */
     #reader video {
       object-fit: cover;
     }
 
-    /* 中央の赤線ガイド（アニメーション付き） */
+    /* 中央の赤線ガイド（さらに薄く・スリムに調整） */
     .scan-laser {
       position: absolute;
       top: 50%;
@@ -142,7 +141,7 @@
   </div>
 
   <p id="status">カメラを準備しています...</p>
-  <button id="retry" hidden>もう一度読み取る</button>
+  <button id="retry" hidden>もう一度読み取り直す</button>
 </main>
 
 <script>
@@ -154,7 +153,6 @@
   const eventId = urlParams.get('event') || '';
   const mode = urlParams.get('mode') || 'jan'; // 'jan' または 'imei'
 
-  // タイトルを「バーコードスキャン」固定、または用途別に設定
   document.getElementById('title-text').textContent = mode === 'imei' ? '製造番号(IMEI)スキャン' : 'バーコードスキャン';
 
   let scanner;
@@ -180,13 +178,18 @@
         verbose: false
       });
 
-      // 読み取り範囲（qrbox）をより狭く設定してピンポイントで狙えるように変更
-      // 幅 240px、高さ 60px で小さなバーコードや混雑した領域に対応
+      // 【対策1】カメラの解像度を高画質（HD）に指定して細部まで捉えやすくする
+      const qrboxSize = { width: 260, height: 35 };
+
       await scanner.start(
-        { facingMode: 'environment' },
         { 
-          fps: 15, 
-          qrbox: { width: 240, height: 60 } 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        { 
+          fps: 20, // 読み取り感度を上げるためにフレームレートを向上
+          qrbox: qrboxSize 
         },
         async function(decodedText) {
           if (locked) return;
@@ -209,6 +212,16 @@
         },
         function() {}
       );
+
+      // 【対策2】カメラ起動後にピント（オートフォーカス）やズームの制御を試みる
+      try {
+        await scanner.applyVideoConstraints({
+          focusMode: "continuous", // 可能な限りピントを合わせ続ける
+          advanced: [{ zoom: 1.2 }] // 小さなバーコード対策として少しだけズーム（非対応機種は無視されます）
+        });
+      } catch (err) {
+        console.log("この端末・ブラウザは高度なカメラ制御（フォーカス/ズーム）に一部非対応です", err);
+      }
 
       document.getElementById('status').textContent = 'カメラにコードを映してください。';
     } catch (error) {
