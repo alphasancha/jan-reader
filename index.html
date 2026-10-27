@@ -84,12 +84,12 @@
       padding: 10px !important;
     }
 
-    /* 見た目をスリムに見せるための上下マスク（高さは従来通りスリット感を演出） */
+    /* 上下のマスク */
     .scan-mask-top, .scan-mask-bottom {
       position: absolute;
       left: 0;
       width: 100%;
-      height: calc(50% - 20px); 
+      height: calc(50% - 25px); 
       background: rgba(0, 0, 0, 0.65);
       pointer-events: none;
       z-index: 10;
@@ -100,9 +100,9 @@
     /* 左右のコーナーフレーム */
     .scan-mask-left, .scan-mask-right {
       position: absolute;
-      top: calc(50% - 20px);
+      top: calc(50% - 25px);
       width: 30px;
-      height: 40px;
+      height: 50px;
       pointer-events: none;
       z-index: 11;
       border-color: rgba(255, 255, 255, 0.7);
@@ -173,7 +173,7 @@
 <body>
 <main>
   <h2 id="title-text">バーコードスキャン</h2>
-  <p class="sub-text">赤線にターゲットを合わせてください</p>
+  <p class="sub-text">少し離して赤線に合わせてください</p>
 
   <div id="scanner-wrapper">
     <div id="reader"></div>
@@ -222,15 +222,12 @@
         verbose: false
       });
 
-      // 【修正ポイント】
-      // 見た目のスリットは狭く見せつつ、内部のスキャン判定領域（qrbox）は
-      // 確実にバーコードを捉えられるよう十分な大きさ（幅280、高さ100）を確保します。
-      // これにより「読み取れない」現象を防ぎます。
+      // 読み取り範囲をしっかり確保しつつ、確実性を持たせる
       await scanner.start(
         { facingMode: 'environment' },
         { 
-          fps: 20, 
-          qrbox: { width: 280, height: 100 } 
+          fps: 25, 
+          qrbox: { width: 300, height: 120 } 
         },
         async function(decodedText) {
           if (locked) return;
@@ -254,11 +251,21 @@
         function() {}
       );
 
+      // 小さなバーコードを少し離れた位置からでもハッキリ捉えるため、
+      // 連続オートフォーカスと少し強めのズーム（1.4倍）を適用する
       try {
         await scanner.applyVideoConstraints({
-          focusMode: "continuous"
+          focusMode: "continuous",
+          advanced: [{ zoom: 1.4 }]
         });
-      } catch (err) {}
+      } catch (err) {
+        // 非対応端末の場合はフォールバック
+        try {
+          await scanner.applyVideoConstraints({
+            focusMode: "continuous"
+          });
+        } catch (e) {}
+      }
 
       document.getElementById('status').textContent = 'カメラにコードを映してください。';
     } catch (error) {
