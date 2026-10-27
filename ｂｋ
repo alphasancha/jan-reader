@@ -3,45 +3,144 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>バーコード・リーダー</title>
+  <title>バーコードスキャン</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0b192c 0%, #1e3a8a 100%);
+      --card-bg: rgba(255, 255, 255, 0.07);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --accent-red: #ff3b30;
+      --accent-red-glow: rgba(255, 59, 48, 0.6);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: sans-serif;
-      padding: 20px;
-      background: #001E43;
-      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 24px 16px;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-main);
       text-align: center;
       margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    main { max-width: 480px; margin: auto; padding-top: 20px; }
-    #reader {
-      background: white;
+
+    main {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 28px 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    h2 {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .sub-text {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin: 0 0 20px 0;
+    }
+
+    /* スキャナーコンテナ */
+    #scanner-wrapper {
+      position: relative;
       border-radius: 16px;
       overflow: hidden;
-      margin-top: 15px;
+      background: #000;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    #status { margin: 18px 0; font-size: 13px; color: #cbd5e1; }
+
+    #reader {
+      width: 100%;
+      border: none !important;
+    }
+
+    /* html5-qrcode 内部要素のスタイリング補正 */
+    #reader video {
+      object-fit: cover;
+    }
+
+    /* 中央の赤線ガイド（アニメーション付き） */
+    .scan-laser {
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      background-color: var(--accent-red);
+      box-shadow: 0 0 8px var(--accent-red-glow), 0 0 16px var(--accent-red-glow);
+      transform: translateY(-50%);
+      pointer-events: none;
+      z-index: 10;
+      animation: pulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; transform: translateY(-50%) scaleX(0.95); }
+      50% { opacity: 1; transform: translateY(-50%) scaleX(1.05); }
+    }
+
+    #status {
+      margin: 20px 0 10px 0;
+      font-size: 14px;
+      color: #e2e8f0;
+      font-weight: 500;
+      min-height: 20px;
+    }
+
     button {
-      padding: 14px;
+      padding: 16px;
       width: 100%;
       border: 0;
-      border-radius: 12px;
-      background: #E60012;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ff3b30 0%, #d70015 100%);
       color: white;
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 700;
       cursor: pointer;
-      margin-top: 10px;
+      margin-top: 12px;
+      box-shadow: 0 4px 14px rgba(230, 0, 18, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    button:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 8px rgba(230, 0, 18, 0.3);
+    }
+
+    button[hidden] {
+      display: none;
     }
   </style>
 </head>
 <body>
 <main>
-  <h2 id="title-text">バーコードリーダー</h2>
-  <p style="font-size: 12px; color: #94a3b8;">コードを枠内に合わせてください</p>
+  <h2 id="title-text">バーコードスキャン</h2>
+  <p class="sub-text">赤線にターゲットを合わせてください</p>
 
-  <div id="reader"></div>
+  <div id="scanner-wrapper">
+    <div id="reader"></div>
+    <div class="scan-laser" id="laser"></div>
+  </div>
+
   <p id="status">カメラを準備しています...</p>
   <button id="retry" hidden>もう一度読み取る</button>
 </main>
@@ -55,7 +154,8 @@
   const eventId = urlParams.get('event') || '';
   const mode = urlParams.get('mode') || 'jan'; // 'jan' または 'imei'
 
-  document.getElementById('title-text').textContent = mode === 'imei' ? '製造番号(IMEI)リーダー' : 'JANコードリーダー';
+  // タイトルを「バーコードスキャン」固定、または用途別に設定
+  document.getElementById('title-text').textContent = mode === 'imei' ? '製造番号(IMEI)スキャン' : 'バーコードスキャン';
 
   let scanner;
   let locked = false;
@@ -64,6 +164,7 @@
     locked = false;
     document.getElementById('retry').hidden = true;
     document.getElementById('status').textContent = 'カメラを起動しています...';
+    document.getElementById('laser').style.display = 'block';
 
     try {
       if (scanner) {
@@ -79,9 +180,14 @@
         verbose: false
       });
 
+      // 読み取り範囲（qrbox）をより狭く設定してピンポイントで狙えるように変更
+      // 幅 240px、高さ 60px で小さなバーコードや混雑した領域に対応
       await scanner.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 280, height: 120 } },
+        { 
+          fps: 15, 
+          qrbox: { width: 240, height: 60 } 
+        },
         async function(decodedText) {
           if (locked) return;
           locked = true;
@@ -107,6 +213,7 @@
       document.getElementById('status').textContent = 'カメラにコードを映してください。';
     } catch (error) {
       document.getElementById('status').textContent = 'カメラを起動できません。権限とHTTPSを確認してください。';
+      document.getElementById('laser').style.display = 'none';
       document.getElementById('retry').hidden = false;
     }
   }
