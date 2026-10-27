@@ -77,7 +77,7 @@
       object-fit: cover;
     }
 
-    /* 中央の赤線ガイド */
+    /* 中央の赤線ガイド（薄型） */
     .scan-laser {
       position: absolute;
       top: 50%;
@@ -178,12 +178,12 @@
         verbose: false
       });
 
-      // 安全かつ確実なカメラ起動設定（エラー回避版）
+      // カメラ起動はシンプルにしてエラーを防ぎつつ、qrboxで高さを低く（35px）設定
       await scanner.start(
-        { facingMode: 'environment' }, // 外カメラを指定
+        { facingMode: 'environment' },
         { 
-          fps: 20, // 高速読み取り
-          qrbox: { width: 260, height: 35 } // 薄型スキャン枠
+          fps: 20, 
+          qrbox: { width: 260, height: 35 } 
         },
         async function(decodedText) {
           if (locked) return;
@@ -207,13 +207,13 @@
         function() {}
       );
 
-      // カメラが起動した後に、ピントやズームの制御を安全に試みる
+      // 起動したあとに、対応している端末だけピントの連続調整を試みる（失敗してもスルーする）
       try {
         await scanner.applyVideoConstraints({
           focusMode: "continuous"
         });
       } catch (err) {
-        console.log("この端末はフォーカス制御の一部に非対応ですが動作に問題はありません", err);
+        // 非対応端末なら何もしない
       }
 
       document.getElementById('status').textContent = 'カメラにコードを映してください。';
