@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>バーコード・リーダー</title>
+  <title>コード・リーダー</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
@@ -14,15 +14,41 @@
       text-align: center;
       margin: 0;
     }
-    main { max-width: 480px; margin: auto; padding-top: 20px; }
+    main { max-width: 480px; margin: auto; padding-top: 10px; }
+    
+    /* 3つのモード切替タブボタン */
+    .mode-selector {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 15px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px 2px;
+      border: 2px solid #38bdf8;
+      border-radius: 8px;
+      background: transparent;
+      color: #38bdf8;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 0;
+    }
+    .mode-btn.active {
+      background: #38bdf8;
+      color: #001E43;
+    }
+
     #reader {
       background: white;
       border-radius: 16px;
       overflow: hidden;
-      margin-top: 15px;
+      margin-top: 10px;
     }
     #status { margin: 18px 0; font-size: 13px; color: #cbd5e1; }
-    button {
+    
+    .action-btn {
       padding: 14px;
       width: 100%;
       border: 0;
@@ -38,41 +64,75 @@
 </head>
 <body>
 <main>
-  <h2 id="title-text">バーコードリーダー</h2>
+  <h2 id="title-text">コードリーダー</h2>
+
+  <!-- JAN / IMEI / QR の切り替えボタン -->
+  <div class="mode-selector">
+    <button type="button" class="mode-btn" data-mode="jan">JANコード</button>
+    <button type="button" class="mode-btn" data-mode="imei">IMEI</button>
+    <button type="button" class="mode-btn" data-mode="qr">QRコード</button>
+  </div>
+
   <p style="font-size: 12px; color: #94a3b8;">コードを枠内に合わせてください</p>
 
   <div id="reader"></div>
   <p id="status">カメラを準備しています...</p>
-  <button id="retry" hidden>もう一度読み取る</button>
+  <button id="retry" class="action-btn" hidden>もう一度読み取る</button>
 </main>
 
 <script>
   // 【重要】ご自身のGASのウェブアプリURLに書き換えてください
-  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxgT9uUSnl8A59HEtSKCQA9rcMjBGcYxBacY40GB5dC-oI3NzkadnIyhG2YjRFi32WHUQ/exec';
+  const GAS_URL = '';
 
   const urlParams = new URLSearchParams(window.location.search);
   const staff = urlParams.get('staff') || '';
   const eventId = urlParams.get('event') || '';
-  const mode = urlParams.get('mode') || 'jan'; // 'jan' または 'imei'
-
-  document.getElementById('title-text').textContent = mode === 'imei' ? '製造番号(IMEI)リーダー' : 'JANコードリーダー';
+  
+  // 初期モード（指定がなければ 'jan'）
+  let currentMode = urlParams.get('mode') || 'jan';
 
   let scanner;
   let locked = false;
+
+  function updateUI() {
+    const titles = {
+      jan: 'JANコードリーダー',
+      imei: '製造番号(IMEI)リーダー',
+      qr: 'QRコードリーダー'
+    };
+    document.getElementById('title-text').textContent = titles[currentMode] || 'コードリーダー';
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      if (btn.dataset.mode === currentMode) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
 
   async function startScanner() {
     locked = false;
     document.getElementById('retry').hidden = true;
     document.getElementById('status').textContent = 'カメラを起動しています...';
+    updateUI();
 
     try {
       if (scanner) {
         await scanner.clear();
       }
 
-      const formats = mode === 'imei' ? 
-        [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13] : 
-        [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8];
+      let formats;
+      let qrboxSize = { width: 280, height: 120 }; // バーコード用の横長枠
+
+      if (currentMode === 'imei') {
+        formats = [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13];
+      } else if (currentMode === 'qr') {
+        formats = [Html5QrcodeSupportedFormats.QR_CODE];
+        qrboxSize = { width: 220, height: 220 }; // QR用の正方形枠
+      } else {
+        formats = [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8];
+      }
 
       scanner = new Html5Qrcode('reader', {
         formatsToSupport: formats,
@@ -81,7 +141,7 @@
 
       await scanner.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 280, height: 120 } },
+        { fps: 10, qrbox: qrboxSize },
         async function(decodedText) {
           if (locked) return;
           locked = true;
@@ -94,11 +154,17 @@
           const target = new URL(GAS_URL);
           target.searchParams.set('staff', staff);
           target.searchParams.set('event', eventId);
-          if (mode === 'imei') {
+          target.searchParams.set('mode', currentMode);
+
+          // モードごとのパラメータ処理（元の仕様通り）
+          if (currentMode === 'imei') {
             target.searchParams.set('imei', decodedText.replace(/[^0-9]/g, '').slice(-6));
+          } else if (currentMode === 'qr') {
+            target.searchParams.set('qr', decodedText);
           } else {
             target.searchParams.set('jan', decodedText);
           }
+
           window.location.href = target.toString();
         },
         function() {}
@@ -111,7 +177,18 @@
     }
   }
 
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const selectedMode = e.target.dataset.mode;
+      if (currentMode !== selectedMode) {
+        currentMode = selectedMode;
+        startScanner();
+      }
+    });
+  });
+
   document.getElementById('retry').addEventListener('click', startScanner);
+  
   startScanner();
 </script>
 </body>
