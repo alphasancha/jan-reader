@@ -77,7 +77,6 @@
       object-fit: cover;
     }
 
-    /* html5-qrcodeのデフォルト枠を完全に非表示にする */
     #reader__scan_region {
       background: transparent !important;
     }
@@ -85,28 +84,28 @@
       padding: 10px !important;
     }
 
-    /* 上下の余計なバーコードをシャットアウトする強力な上下マスク */
+    /* 見た目をスリムに見せるための上下マスク（高さは従来通りスリット感を演出） */
     .scan-mask-top, .scan-mask-bottom {
       position: absolute;
       left: 0;
       width: 100%;
-      height: calc(50% - 15px); /* 中央のスリット部分（高さ30px）以外をすべて黒幕で覆う */
-      background: rgba(0, 0, 0, 0.7);
+      height: calc(50% - 20px); 
+      background: rgba(0, 0, 0, 0.65);
       pointer-events: none;
       z-index: 10;
     }
     .scan-mask-top { top: 0; }
     .scan-mask-bottom { bottom: 0; }
 
-    /* 左右のガイドフレーム */
+    /* 左右のコーナーフレーム */
     .scan-mask-left, .scan-mask-right {
       position: absolute;
-      top: calc(50% - 15px);
+      top: calc(50% - 20px);
       width: 30px;
-      height: 30px;
+      height: 40px;
       pointer-events: none;
       z-index: 11;
-      border-color: rgba(255, 255, 255, 0.6);
+      border-color: rgba(255, 255, 255, 0.7);
       border-style: solid;
     }
     .scan-mask-left {
@@ -118,7 +117,7 @@
       border-width: 2px 2px 0 0;
     }
 
-    /* 真ん中の極細赤線ガイド */
+    /* 中央の赤線ガイド */
     .scan-laser {
       position: absolute;
       top: 50%;
@@ -178,7 +177,6 @@
 
   <div id="scanner-wrapper">
     <div id="reader"></div>
-    <!-- 上下を黒幕で完全に隠し、中央の高さ30pxの隙間だけを通す -->
     <div class="scan-mask-top"></div>
     <div class="scan-mask-bottom"></div>
     <div class="scan-mask-left"></div>
@@ -224,11 +222,15 @@
         verbose: false
       });
 
+      // 【修正ポイント】
+      // 見た目のスリットは狭く見せつつ、内部のスキャン判定領域（qrbox）は
+      // 確実にバーコードを捉えられるよう十分な大きさ（幅280、高さ100）を確保します。
+      // これにより「読み取れない」現象を防ぎます。
       await scanner.start(
         { facingMode: 'environment' },
         { 
           fps: 20, 
-          qrbox: { width: 280, height: 30 } 
+          qrbox: { width: 280, height: 100 } 
         },
         async function(decodedText) {
           if (locked) return;
