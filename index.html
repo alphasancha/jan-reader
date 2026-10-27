@@ -3,145 +3,191 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>コード・リーダー</title>
+  <title>バーコードスキャン</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0b192c 0%, #1e3a8a 100%);
+      --card-bg: rgba(255, 255, 255, 0.07);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --accent-red: #ff3b30;
+      --accent-red-glow: rgba(255, 59, 48, 0.6);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: sans-serif;
-      padding: 20px;
-      background: #001E43;
-      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 24px 16px;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-main);
       text-align: center;
       margin: 0;
-    }
-    main { max-width: 480px; margin: auto; padding-top: 10px; }
-    
-    /* 3つのモード切替タブボタン */
-    .mode-selector {
       display: flex;
-      justify-content: space-between;
-      gap: 6px;
-      margin-bottom: 15px;
+      justify-content: center;
+      align-items: center;
     }
-    .mode-btn {
-      flex: 1;
-      padding: 10px 2px;
-      border: 2px solid #38bdf8;
-      border-radius: 8px;
-      background: transparent;
-      color: #38bdf8;
+
+    main {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 28px 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    h2 {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .sub-text {
       font-size: 13px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 0;
+      color: var(--text-sub);
+      margin: 0 0 20px 0;
     }
-    .mode-btn.active {
-      background: #38bdf8;
-      color: #001E43;
+
+    /* スキャナーコンテナ */
+    #scanner-wrapper {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     #reader {
-      background: white;
-      border-radius: 16px;
-      overflow: hidden;
-      margin-top: 10px;
+      width: 100%;
+      border: none !important;
     }
-    #status { margin: 18px 0; font-size: 13px; color: #cbd5e1; }
-    
-    .action-btn {
-      padding: 14px;
+
+    /* html5-qrcode 内部要素のスタイリング補正 */
+    #reader video {
+      object-fit: cover;
+    }
+
+    /* 中央の赤線ガイド（アニメーション付き） */
+    .scan-laser {
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      background-color: var(--accent-red);
+      box-shadow: 0 0 8px var(--accent-red-glow), 0 0 16px var(--accent-red-glow);
+      transform: translateY(-50%);
+      pointer-events: none;
+      z-index: 10;
+      animation: pulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; transform: translateY(-50%) scaleX(0.95); }
+      50% { opacity: 1; transform: translateY(-50%) scaleX(1.05); }
+    }
+
+    #status {
+      margin: 20px 0 10px 0;
+      font-size: 14px;
+      color: #e2e8f0;
+      font-weight: 500;
+      min-height: 20px;
+    }
+
+    button {
+      padding: 16px;
       width: 100%;
       border: 0;
-      border-radius: 12px;
-      background: #E60012;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ff3b30 0%, #d70015 100%);
       color: white;
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 700;
       cursor: pointer;
-      margin-top: 10px;
+      margin-top: 12px;
+      box-shadow: 0 4px 14px rgba(230, 0, 18, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    button:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 8px rgba(230, 0, 18, 0.3);
+    }
+
+    button[hidden] {
+      display: none;
     }
   </style>
 </head>
 <body>
 <main>
-  <h2 id="title-text">コードリーダー</h2>
+  <h2 id="title-text">バーコードスキャン</h2>
+  <p class="sub-text">赤線にターゲットを合わせてください</p>
 
-  <!-- JAN / IMEI / QR の切り替えボタン -->
-  <div class="mode-selector">
-    <button type="button" class="mode-btn" data-mode="jan">JANコード</button>
-    <button type="button" class="mode-btn" data-mode="imei">IMEI</button>
-    <button type="button" class="mode-btn" data-mode="qr">QRコード</button>
+  <div id="scanner-wrapper">
+    <div id="reader"></div>
+    <div class="scan-laser" id="laser"></div>
   </div>
 
-  <p style="font-size: 12px; color: #94a3b8;">コードを枠内に合わせてください</p>
-
-  <div id="reader"></div>
   <p id="status">カメラを準備しています...</p>
-  <button id="retry" class="action-btn" hidden>もう一度読み取る</button>
+  <button id="retry" hidden>もう一度読み取る</button>
 </main>
 
 <script>
   // 【重要】ご自身のGASのウェブアプリURLに書き換えてください
-  const GAS_URL = '';
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxgT9uUSnl8A59HEtSKCQA9rcMjBGcYxBacY40GB5dC-oI3NzkadnIyhG2YjRFi32WHUQ/exec';
 
   const urlParams = new URLSearchParams(window.location.search);
   const staff = urlParams.get('staff') || '';
   const eventId = urlParams.get('event') || '';
-  
-  // 初期モード（指定がなければ 'jan'）
-  let currentMode = urlParams.get('mode') || 'jan';
+  const mode = urlParams.get('mode') || 'jan'; // 'jan' または 'imei'
+
+  // タイトルを「バーコードスキャン」固定、または用途別に設定
+  document.getElementById('title-text').textContent = mode === 'imei' ? '製造番号(IMEI)スキャン' : 'バーコードスキャン';
 
   let scanner;
   let locked = false;
-
-  function updateUI() {
-    const titles = {
-      jan: 'JANコードリーダー',
-      imei: '製造番号(IMEI)リーダー',
-      qr: 'QRコードリーダー'
-    };
-    document.getElementById('title-text').textContent = titles[currentMode] || 'コードリーダー';
-
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-      if (btn.dataset.mode === currentMode) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-  }
 
   async function startScanner() {
     locked = false;
     document.getElementById('retry').hidden = true;
     document.getElementById('status').textContent = 'カメラを起動しています...';
-    updateUI();
+    document.getElementById('laser').style.display = 'block';
 
     try {
       if (scanner) {
         await scanner.clear();
       }
 
-      let formats;
-      let qrboxSize = { width: 280, height: 120 }; // バーコード用の横長枠
-
-      if (currentMode === 'imei') {
-        formats = [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13];
-      } else if (currentMode === 'qr') {
-        formats = [Html5QrcodeSupportedFormats.QR_CODE];
-        qrboxSize = { width: 220, height: 220 }; // QR用の正方形枠
-      } else {
-        formats = [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8];
-      }
+      const formats = mode === 'imei' ? 
+        [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.EAN_13] : 
+        [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8];
 
       scanner = new Html5Qrcode('reader', {
         formatsToSupport: formats,
         verbose: false
       });
 
+      // 読み取り範囲（qrbox）をより狭く設定してピンポイントで狙えるように変更
+      // 幅 240px、高さ 60px で小さなバーコードや混雑した領域に対応
       await scanner.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: qrboxSize },
+        { 
+          fps: 15, 
+          qrbox: { width: 240, height: 60 } 
+        },
         async function(decodedText) {
           if (locked) return;
           locked = true;
@@ -154,17 +200,11 @@
           const target = new URL(GAS_URL);
           target.searchParams.set('staff', staff);
           target.searchParams.set('event', eventId);
-          target.searchParams.set('mode', currentMode);
-
-          // モードごとのパラメータ処理（元の仕様通り）
-          if (currentMode === 'imei') {
+          if (mode === 'imei') {
             target.searchParams.set('imei', decodedText.replace(/[^0-9]/g, '').slice(-6));
-          } else if (currentMode === 'qr') {
-            target.searchParams.set('qr', decodedText);
           } else {
             target.searchParams.set('jan', decodedText);
           }
-
           window.location.href = target.toString();
         },
         function() {}
@@ -173,22 +213,12 @@
       document.getElementById('status').textContent = 'カメラにコードを映してください。';
     } catch (error) {
       document.getElementById('status').textContent = 'カメラを起動できません。権限とHTTPSを確認してください。';
+      document.getElementById('laser').style.display = 'none';
       document.getElementById('retry').hidden = false;
     }
   }
 
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const selectedMode = e.target.dataset.mode;
-      if (currentMode !== selectedMode) {
-        currentMode = selectedMode;
-        startScanner();
-      }
-    });
-  });
-
   document.getElementById('retry').addEventListener('click', startScanner);
-  
   startScanner();
 </script>
 </body>
