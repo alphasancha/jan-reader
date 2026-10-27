@@ -87,7 +87,7 @@
       background-color: var(--accent-red);
       box-shadow: 0 0 8px var(--accent-red-glow), 0 0 16px var(--accent-red-glow);
       transform: translateY(-50%);
-      pointer-events: none;qrboxSize
+      pointer-events: none;
       z-index: 10;
       animation: pulse 1.8s infinite ease-in-out;
     }
@@ -179,7 +179,7 @@
       });
 
       // 【対策1】カメラの解像度を高画質（HD）に指定して細部まで捉えやすくする
-      const qrboxSize = { width: 260, height: 20 };
+      const qrboxSize = { width: 260, height: 35 };
 
       await scanner.start(
         { 
