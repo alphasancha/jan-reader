@@ -11,7 +11,7 @@
       --card-bg: rgba(255, 255, 255, 0.07);
       --card-border: rgba(255, 255, 255, 0.12);
       --accent-red: #ff3b30;
-      --accent-red-glow: rgba(255, 59, 48, 0.6);
+      --accent-red-glow: rgba(255, 59, 48, 0.8);
       --text-main: #f8fafc;
       --text-sub: #94a3b8;
     }
@@ -77,61 +77,65 @@
       object-fit: cover;
     }
 
-    /* html5-qrcode が自動生成するボーダーや背景を強制的に隠す・上書きする設定 */
+    /* html5-qrcodeのデフォルト枠を完全に非表示にする */
     #reader__scan_region {
       background: transparent !important;
     }
     #reader__dashboard {
       padding: 10px !important;
     }
-    #reader__dashboard_section_csr button,
-    #reader__dashboard_section_swaplink {
-      color: #fff !important;
-    }
 
-    /* 【追加】スキャン枠以外の部分を暗くして、中央の細いスリットだけを浮き上がらせるマスク演出 */
-    .scan-mask {
+    /* 上下の余計なバーコードをシャットアウトする強力な上下マスク */
+    .scan-mask-top, .scan-mask-bottom {
       position: absolute;
-      top: 0;
       left: 0;
       width: 100%;
-      height: 100%;
+      height: calc(50% - 15px); /* 中央のスリット部分（高さ30px）以外をすべて黒幕で覆う */
+      background: rgba(0, 0, 0, 0.7);
       pointer-events: none;
-      z-index: 5;
-      box-shadow: inset 0 0 0 1000px rgba(0, 0, 0, 0.45);
-      /* 中央に高さ24pxの穴（スリット）を開ける */
-      clip-path: polygon(
-        0 0, 
-        100% 0, 
-        100% calc(50% - 12px), 
-        calc(50% - 130px) calc(50% - 12px), 
-        calc(50% - 130px) calc(50% + 12px), 
-        calc(50% + 130px) calc(50% + 12px), 
-        calc(50% + 130px) calc(50% - 12px), 
-        100% calc(50% - 12px), 
-        100% 100%, 
-        0 100%
-      );
+      z-index: 10;
+    }
+    .scan-mask-top { top: 0; }
+    .scan-mask-bottom { bottom: 0; }
+
+    /* 左右のガイドフレーム */
+    .scan-mask-left, .scan-mask-right {
+      position: absolute;
+      top: calc(50% - 15px);
+      width: 30px;
+      height: 30px;
+      pointer-events: none;
+      z-index: 11;
+      border-color: rgba(255, 255, 255, 0.6);
+      border-style: solid;
+    }
+    .scan-mask-left {
+      left: 20px;
+      border-width: 2px 0 0 2px;
+    }
+    .scan-mask-right {
+      right: 20px;
+      border-width: 2px 2px 0 0;
     }
 
-    /* 中央の赤線ガイド（さらにスリムに） */
+    /* 真ん中の極細赤線ガイド */
     .scan-laser {
       position: absolute;
       top: 50%;
-      left: calc(50% - 130px);
-      width: 260px;
+      left: 10%;
+      width: 80%;
       height: 2px;
       background-color: var(--accent-red);
       box-shadow: 0 0 8px var(--accent-red-glow), 0 0 16px var(--accent-red-glow);
       transform: translateY(-50%);
       pointer-events: none;
-      z-index: 10;
-      animation: pulse 1.8s infinite ease-in-out;
+      z-index: 12;
+      animation: pulse 1.5s infinite ease-in-out;
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 0.4; transform: translateY(-50%) scaleX(0.95); }
-      50% { opacity: 1; transform: translateY(-50%) scaleX(1.05); }
+      0%, 100% { opacity: 0.5; transform: translateY(-50%) scaleX(0.95); }
+      50% { opacity: 1; transform: translateY(-50%) scaleX(1.02); }
     }
 
     #status {
@@ -174,7 +178,11 @@
 
   <div id="scanner-wrapper">
     <div id="reader"></div>
-    <div class="scan-mask"></div>
+    <!-- 上下を黒幕で完全に隠し、中央の高さ30pxの隙間だけを通す -->
+    <div class="scan-mask-top"></div>
+    <div class="scan-mask-bottom"></div>
+    <div class="scan-mask-left"></div>
+    <div class="scan-mask-right"></div>
     <div class="scan-laser" id="laser"></div>
   </div>
 
@@ -216,12 +224,11 @@
         verbose: false
       });
 
-      // 読み取り範囲を完全に狭く指定（幅260px、高さ20px）
       await scanner.start(
         { facingMode: 'environment' },
         { 
           fps: 20, 
-          qrbox: { width: 260, height: 20 } 
+          qrbox: { width: 280, height: 30 } 
         },
         async function(decodedText) {
           if (locked) return;
@@ -245,7 +252,6 @@
         function() {}
       );
 
-      // ピントの連続調整を試みる（対応端末のみ）
       try {
         await scanner.applyVideoConstraints({
           focusMode: "continuous"
